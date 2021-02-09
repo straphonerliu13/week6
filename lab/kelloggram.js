@@ -8,12 +8,33 @@ window.addEventListener('DOMContentLoaded', async function(event) {
   // - Begin by using .querySelector to select the form
   //   element, add an event listener to the 'submit' event,
   //   and preventing the default behavior.
+  document.querySelector('form').addEventListener('submit', async function(event) {
+    event.preventDefault()
+    console.log('Post submitted!')
+      
   // - Using the "db" variable, talk to Firestore. When the form is
   //   submitted, send the data entered to Firestore by using 
   //   db.collection('posts').add(). Along withthe username and image 
   //   URL, add a "likes" field and set it to 0; we'll use this later.
   // - Verify (in Firebase) that records are being added.
-  
+
+  // Before grabbing things from database, need to hit submit and add items
+  // might need variables to hold form values
+  let usernameText = document.querySelector('#username').value
+  let imageURLText = document.querySelector('#image-url').value
+  console.log(usernameText)
+  console.log(imageURLText)
+
+  if(usernameText.length && imageURLText.length > 0) {
+    let addPost = await db.collection('posts').add({
+      username: usernameText,
+      url: imageURLText,
+      likes: 0
+    })
+
+    document.querySelector('#username').value = ''
+    document.querySelector('#image-url').value = ''
+  }
   // Step 2: Read existing posts from Firestore and display them
   // when the page is loaded
   // - Read data using db.collection('posts').get()
@@ -23,23 +44,55 @@ window.addEventListener('DOMContentLoaded', async function(event) {
   // - Inside the loop, using insertAdjacentHTML, add posts
   //   to the page inside the provided "posts" div; sample code
   //   provided:
-  //
-  //   document.querySelector('.posts').insertAdjacentHTML('beforeend', `
-  //     <div class="md:mt-16 mt-8 space-y-8">
-  //       <div class="md:mx-0 mx-4">
-  //         <span class="font-bold text-xl">${postUsername}</span>
-  //       </div>
-  //
-  //       <div>
-  //         <img src="${postImageUrl}" class="w-full">
-  //       </div>
-  //  
-  //       <div class="text-3xl md:mx-0 mx-4">
-  //         <button class="like-button">❤️</button>
-  //         <span class="likes">0</span>
-  //       </div>
-  //     </div>
-  //   `)
+
+  let querySnapshot = await db.collection('posts').get()
+  querySnapshot.size // => 3
+  console.log(querySnapshot.size)
+
+  let posts = querySnapshot.docs
+
+  for (let i=0; i<posts.length; i++){
+    let postID = posts[i].id 
+    let postData = posts[i].data()
+    let postUsername = postData.username
+    let postImageUrl = postData.url 
+    let postNumberOfLikes = postData.likes
+
+    console.log(postUsername)
+    console.log(postImageUrl)
+
+
+
+    document.querySelector('.posts').insertAdjacentHTML('beforeend', `
+      <div class="md:mt-16 mt-8 space-y-8">
+        <div class="md:mx-0 mx-4">
+          <span class="font-bold text-xl">${postUsername}</span>
+        </div>
+  
+        <div>
+          <img src="${postImageUrl}" class="w-full">
+        </div>
+   
+        <div class="text-3xl md:mx-0 mx-4">
+          <button class="${postID}">❤️</button>
+          <span class="likes">${postNumberOfLikes}</span>
+        </div>
+      </div>
+    `)
+
+    document.querySelector(`.posts-${postID} .like-button`).addEventListener('click', async function(event) {
+      event.preventDefault()
+      console.log(`Post ${postID} was liked!`)
+      let existingNumberOfLikes = document.querySelector(`.posts-${postID} .likes`).innerHTML
+      let newNumberOfLikes = parseInt(existingNumberOfLikes) + 1
+      document.querySelector(`.posts-${postID} .likes`).innerHTML = newNumberOfLikes
+      await db.collection('posts').doc(postID).update({
+        likes: newNumberOfLikes
+      })
+  })
+  
+  }
+
   
   // Step 3: Implement the "like" button
   // - In the code we wrote for Step 2, attach an event listener to
@@ -71,4 +124,6 @@ window.addEventListener('DOMContentLoaded', async function(event) {
   //   gets added in what seems to be a somewhat "random" order (but 
   //   it's the same "random" order every time we refresh). Why is that?
   //   How can we remedy? (HINT: involves a timestamp – see reference)
+})
+
 })
